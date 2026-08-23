@@ -138,21 +138,36 @@
 
     const media_control_front = document.getElementById("media-control-front");
     const media_control_back = document.getElementById("media-control-back");
-    const media_control_delay = 250; //in ms milisecond
+    const media_control_delay = 200; //in ms milisecond
+    let media_control_hold_speed_interval = 200;
 
     let global_timer;
+    let global_interval;
+    let key_hold = false;
 
     // Front btn
     media_control_front.addEventListener("click", (event) =>
     {
+        // If we were previously holding the key, do not execute the click event
+        // Make sure to clean the state before the next runs
+        if (key_hold == true)
+        {
+            key_hold = false;
+            return
+        }
 
         // Cancel the previous timer and wait a bit to see if we need to execute another thing
-        clearTimeout(global_timer);
-        global_timer = setTimeout(()=>{PlayPause(speech_synth)}, media_control_delay);
-
-        if (event.detail === 2)
+        if (event.detail == 1)
         {
-            // Cancel the previous event and also wait a bit
+            clearTimeout(global_timer);
+            global_timer = setTimeout(()=>{PlayPause(speech_synth)}, media_control_delay);
+        }
+
+        // To be able to spam the button without triggering other actions, it is necessary to perform the action immediately (otherwiser the clearTimeout clears) and look for clicks higher or equal than 2
+        // This won't allow spam for now because we will have the hold gesture to cover the same functionality.
+        if (event.detail == 2)
+        {
+            // Cancel the previous event
             clearTimeout(global_timer)
             global_timer = setTimeout(()=>{FastForward("", 0, 0)}, media_control_delay);
         }
@@ -165,23 +180,81 @@
         }
     });
 
+    // Hold action
+    // Keep the key pressed to continuously run the action
+    // When the key is removed, all of the timers are cleared before the click events
+    media_control_front.addEventListener("mousedown", (event) =>
+    {
+        event.preventDefault();
+        clearTimeout(global_timer);
+        clearInterval(global_interval);
+
+        // Wait a bit of time and then execute continously the same thing
+        global_timer = setTimeout(() => { global_interval = setInterval(()=>{key_hold = true; FastForward("", 0, 0)}, media_control_hold_speed_interval) }, media_control_delay);
+        //console.log("mousedown")
+    });
+    media_control_front.addEventListener("mouseup", (event) =>
+    {
+        // Clear everything
+        clearTimeout(global_timer);
+        clearInterval(global_interval);
+        //console.log("mouseup");
+    });
+
     // Back btn
     media_control_back.addEventListener("click", (event) =>
     {
-        PlayPause(speech_synth);
-    });
+        // If we were previously holding the key, do not execute the click event
+        // Make sure to clean the state before the next runs
+        if (key_hold == true)
+        {
+            key_hold = false;
+            return
+        }
 
-    media_control_back.addEventListener("dblclick", (event) =>
-    {
-        Rewind("", 0, 0);
-    });
+        // Cancel the previous timer and wait a bit to see if we need to execute another thing
+        if (event.detail == 1)
+        {
+            clearTimeout(global_timer);
+            global_timer = setTimeout(()=>{PlayPause(speech_synth)}, media_control_delay);
+        }
 
-    media_control_back.addEventListener("click", (event) =>
-    {
+        // To be able to spam the button without triggering other actions, it is necessary to perform the action immediately (otherwiser the clearTimeout clears) and look for clicks higher or equal than 2
+        // This won't allow spam for now because we will have the hold gesture to cover the same functionality.
+        if (event.detail == 2)
+        {
+            // Cancel the previous event
+            clearTimeout(global_timer)
+            global_timer = setTimeout(()=>{Rewind("", 0, 0)}, media_control_delay);
+        }
+
         if (event.detail === 3)
         {
-            ShowSettings();
+            // Cancel the previous event and also wait a bit
+            clearTimeout(global_timer)
+            global_timer = setTimeout(()=>{ShowSettings()}, media_control_delay);
         }
+    });
+
+    // Hold action
+    // Keep the key pressed to continuously run the action
+    // When the key is removed, all of the timers are cleared before the click events
+    media_control_back.addEventListener("mousedown", (event) =>
+    {
+        event.preventDefault();
+        clearTimeout(global_timer);
+        clearInterval(global_interval);
+
+        // Wait a bit of time and then execute continously the same thing
+        global_timer = setTimeout(() => { global_interval = setInterval(()=>{key_hold = true; Rewind("", 0, 0)}, media_control_hold_speed_interval) }, media_control_delay);
+        //console.log("mousedown")
+    });
+    media_control_back.addEventListener("mouseup", (event) =>
+    {
+        // Clear everything
+        clearTimeout(global_timer);
+        clearInterval(global_interval);
+        //console.log("mouseup");
     });
 
     // Basic controls
