@@ -11,6 +11,19 @@
             padding: 0;
         }
 
+        /*Used to toggle the visibility of the pages*/
+        .display_none_class
+        {
+            display: none;
+        }
+
+        /*Each page will get 100 places in the z-index allocated*/
+        /*Main page will get from 0-99 (inclusive)*/
+        #PageMain
+        {
+            z-index: 0;
+        }
+
         .TextPreview
         {
             opacity: 50%;
@@ -21,9 +34,9 @@
             background-color: rgb(134, 175, 255);
         }
 
-        .media-control-overlay
+        #media-control-overlay
         {
-            z-index: 100;
+            z-index: 99;
             margin: 0;
             top: 0;
             height: 100vh;
@@ -33,24 +46,36 @@
             flex-direction: row;
         }
 
-            #media-control-back
-            {
-                margin: 0;
-                top: 0;
-                background-color: brown;
-            }
+        #media-control-back
+        {
+            margin: 0;
+            top: 0;
+            background-color: brown;
+        }
 
-            #media-control-front
-            {
-                margin: 0;
-                top: 0;
-                background-color: aquamarine;
-            }
+        #media-control-front
+        {
+            margin: 0;
+            top: 0;
+            background-color: aquamarine;
+        }
+
+        /*The settings page will use z-index from 100 to 199. 100-199 (inclusive)*/
+        #PageSettings
+        {
+            z-index: 100;
+            position: absolute;
+        }
+
+        #VoiceSettings
+        {
+            flex-direction: column;
+        }
 
         /* Orientation specific styles */
         @media screen and (orientation: landscape)
         {
-            .media-control-overlay
+            #media-control-overlay
             {
                 flex-direction: row;
             }
@@ -71,7 +96,7 @@
         /* Orientation specific styles */
         @media screen and (orientation: portrait)
         {
-            .media-control-overlay
+            #media-control-overlay
             {
                 flex-direction: column;
             }
@@ -96,10 +121,12 @@
     <div id="PageMain">
 
         <!--Invisible buttons that take the whole screen and represent the media controls-->
-        <div class="media-control-overlay">
+        <div id="media-control-overlay">
             <div id="media-control-back"></div>
             <div id="media-control-front"></div>
         </div>
+
+        <div id="SkipTo"></div>
 
         <div id="TextViewer">
             <div class="TextPreview" id="TextViewer_Previous">Previous text</div>
@@ -135,18 +162,112 @@
         
             <!--https://www.svgrepo.com/svg/97894/left-arrow-->
             <div id="CloseSettings"><svg fill="#000000" version="1.1" id="Capa_1" viewBox="0 0 400.004 400.004" xml:space="preserve"  width="25" height="25"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M382.688,182.686H59.116l77.209-77.214c6.764-6.76,6.764-17.726,0-24.485c-6.764-6.764-17.73-6.764-24.484,0L5.073,187.757 c-6.764,6.76-6.764,17.727,0,24.485l106.768,106.775c3.381,3.383,7.812,5.072,12.242,5.072c4.43,0,8.861-1.689,12.242-5.072 c6.764-6.76,6.764-17.726,0-24.484l-77.209-77.218h323.572c9.562,0,17.316-7.753,17.316-17.315 C400.004,190.438,392.251,182.686,382.688,182.686z"></path> </g> </g></svg></div>
-        
         </div>
+    </div>
+
+    <div id="PageSettings" class="display_none_class">
+
+        <button type="button" id="close_settings">CloseSettings</button>
+
+        <form action="" id="VoiceSettings">
+            <div id="utterance_text_group">
+                <label for="utterance_text">Input text:</label>
+                <input type="file" id="utterance_text" name="utterance_text">
+            </div>
+
+            <div id="utterance_voice_type_group">
+                <legend for="utterance_voice_type">Voice type:</legend>
+
+                <input type="radio" id="utterance_voice_type_both" name="utterance_voice_type" value="Both" checked>
+                <label for="utterance_voice_type_both">Both</label>
+
+                <input type="radio" id="utterance_voice_type_offline" name="utterance_voice_type" value="Online">
+                <label for="utterance_voice_type_offline">Offline</label>
+
+                <input type="radio" id="utterance_voice_type_online" name="utterance_voice_type" value="Offline">
+                <label for="utterance_voice_type_online">Online</label>
+            </div>
+
+            <div id="utterance_voice_group">
+                <label for="utterance_voice">Voice:</label>
+                <input type="text" id="utterance_voice" name="utterance_voice" placeholder="tts_voice">
+
+                <!--Empty by default, it should be populated by the JS when it requests the available voices-->
+                <div id="VoiceList"></div>
+            </div>
+
+            <div id="utterance_rate_group">
+                <label for="utterance_rate">Rate (0.1 - 10):</label>
+                <input type="number" id="utterance_rate" name="utterance_rate" min="0.1" max="10" step="0.1" value="5">
+            </div>
+
+            <div id="utterance_pitch_group">
+                <label for="utterance_pitch">Pitch (0 - 2):</label>
+                <input type="number" id="utterance_pitch" name="utterance_pitch" min="0" max="2" step="0.1" value="0">
+            </div>
+
+            <div id="utterance_lang_group">
+                <label for="utterance_lang">Language:</label>
+                <input type="text" id="utterance_lang" name="utterance_lang" placeholder="en-US">
+            </div>
+
+            <div id="utterance_volume_group">
+                <label for="utterance_volume">Volume (0 - 1):</label>
+                <input type="number" id="utterance_volume" name="utterance_volume" min="0" max="1" step="0.1" value="1">
+            </div>
+        </form>
+
+    <hr>
+
+        <form action="" id="MediaControlSettings">
+
+            <div id="media_control_settings_replay_group">
+                <label for="media_control_settings_replay">Replay:</label>
+                <input type="checkbox" id="media_control_settings_replay" name="media_control_settings_replay" checked>
+            </div>
+
+            <div id="media_control_settings_input_latency_group">
+                <label for="media_control_settings_input_latency">Input latenecy in miliseconds (ms):</label>
+                <input type="number" id="media_control_settings_input_latency" name="media_control_settings_input_latency" value="200">
+            </div>
+
+            <div id="media_control_settings_fastFoward_speed_group">
+                <label for="media_control_settings_fastFoward_speed">FastForward hold speed in milisencods (lower is faster):</label>
+                <input type="number" id="media_control_settings_fastFoward_speed" name="media_control_settings_fastFoward_speed" value="200">
+            </div>
+
+            <div id="media_control_settings_fastFoward_word_skip_group">
+                <label for="media_control_settings_fastFoward_word_skip">FastForward word jump:</label>
+                <input type="number" id="media_control_settings_fastFoward_word_skip" name="media_control_settings_fastFoward_word_skip" value="10">
+            </div>
+
+            <div id="media_control_settings_rewind_speed_group">
+                <label for="media_control_settings_rewind_speed">Rewind hold speed in milisencods (lower is faster):</label>
+                <input type="number" id="media_control_settings_rewind_speed" name="media_control_settings_rewind_speed" value="200">
+            </div>
+
+            <div id="media_control_settings_rewind_word_skip_group">
+                <label for="media_control_settings_rewind_word_skip">Rewind word jump:</label>
+                <input type="number" id="media_control_settings_rewind_word_skip" name="media_control_settings_rewind_word_skip" value="10">
+            </div>
+        </form>
     </div>
 </body>
 <script>
 
     // https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API
     const speech_synth = window.speechSynthesis;
+    let utterance = undefined;
 
+    const main_page = document.getElementById("PageMain");
+
+    const settings_page = document.getElementById("PageSettings");
+    const close_settings_btn = document.getElementById("close_settings");
+
+    const media_control_overlay = document.getElementById("media-control-overlay");
     const media_control_front = document.getElementById("media-control-front");
     const media_control_back = document.getElementById("media-control-back");
-    const media_control_delay = 200; //in ms milisecond
+    const media_control_delay = 200; //in ms (miliseconda)
     let media_control_hold_speed_interval = 200;
 
     let global_timer;
@@ -240,7 +361,8 @@
     // When the key is removed, all of the timers are cleared before the click events
     media_control_back.addEventListener("mousedown", HoldActions);
     media_control_back.addEventListener("mouseup", ClearGlobalTimers);
-   
+
+    close_settings_btn.addEventListener("click", CloseSettings);
 
     // Basic controls
     function FastForward(input_text, current_char, word_count)
@@ -258,12 +380,23 @@
         console.log("PlayPause");
     }
 
+    // It is better to show first because it renders the actual page before we hide the current one (it avoids a blank page transition)
     function ShowSettings()
     {
         console.log("ShowSettings");
+        settings_page.classList.toggle("display_none_class"); // show
+        main_page.classList.toggle("display_none_class"); //close
     }
 
-    function CloseSettings(){}
+    function CloseSettings()
+    {
+        console.log("CloseSettings");
+        main_page.classList.toggle("display_none_class"); //show
+        settings_page.classList.toggle("display_none_class"); //close
+    }
+
+    function SkipTo(){}
+
 
 </script>
 </html>
