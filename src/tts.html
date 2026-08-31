@@ -202,14 +202,25 @@
                 <div id="utterance_voice_type_group">
                     <legend for="utterance_voice_type">Voice type:</legend>
 
-                    <input type="radio" id="utterance_voice_type_both" name="utterance_voice_type" value="Both" checked>
-                    <label for="utterance_voice_type_both">Both</label>
+                    <div>
+                        <input type="radio" id="utterance_voice_type_both" name="utterance_voice_type" value="both" checked>
+                        <label for="utterance_voice_type_both">Both</label>
+                    </div>
 
-                    <input type="radio" id="utterance_voice_type_offline" name="utterance_voice_type" value="Online">
-                    <label for="utterance_voice_type_offline">Offline</label>
+                    <div>
+                        <input type="radio" id="utterance_voice_type_offline" name="utterance_voice_type" value="offline">
+                        <label for="utterance_voice_type_offline">Offline</label>
+                    </div>
 
-                    <input type="radio" id="utterance_voice_type_online" name="utterance_voice_type" value="Offline">
-                    <label for="utterance_voice_type_online">Online</label>
+                    <div>
+                        <input type="radio" id="utterance_voice_type_online" name="utterance_voice_type" value="online">
+                        <label for="utterance_voice_type_online">Online</label>
+                    </div>
+                </div>
+
+                <div id="utterance_lang_group">
+                    <label for="utterance_lang">Language:</label>
+                    <input type="text" id="utterance_lang" name="utterance_lang" placeholder="en-US">
                 </div>
 
                 <div id="utterance_voice_group">
@@ -217,7 +228,7 @@
                     <input type="text" id="utterance_voice" name="utterance_voice" placeholder="tts_voice">
 
                     <!--Empty by default, it should be populated by the JS when it requests the available voices-->
-                    <div id="VoiceList"></div>
+                    <div id="voice_list"></div>
                 </div>
 
                 <div id="utterance_rate_group">
@@ -228,11 +239,6 @@
                 <div id="utterance_pitch_group">
                     <label for="utterance_pitch">Pitch (0 - 2):</label>
                     <input type="number" id="utterance_pitch" name="utterance_pitch" min="0" max="2" step="0.1" value="0">
-                </div>
-
-                <div id="utterance_lang_group">
-                    <label for="utterance_lang">Language:</label>
-                    <input type="text" id="utterance_lang" name="utterance_lang" placeholder="en-US">
                 </div>
 
                 <div id="utterance_volume_group">
@@ -291,6 +297,7 @@
 
     const settings_page = document.getElementById("PageSettings");
     const close_settings_btn = document.getElementById("close_settings");
+    const voice_list_html = document.getElementById("voice_list");
 
     const media_control_overlay = document.getElementById("media-control-overlay");
     const media_control_front = document.getElementById("media-control-front");
@@ -421,13 +428,13 @@
     {
         console.log("ShowSettings");
         settings_page.classList.toggle("display_none_class"); // show
-        //main_page.classList.toggle("display_none_class"); //close
+        main_page.classList.toggle("display_none_class"); //close
     }
 
     function CloseSettings()
     {
         console.log("CloseSettings");
-        //main_page.classList.toggle("display_none_class"); //show
+        main_page.classList.toggle("display_none_class"); //show
         settings_page.classList.toggle("display_none_class"); //close
     }
 
@@ -501,6 +508,95 @@
         return final_html_text;
     }
 
+    // Voice synth functions
+
+    function GetVoiceServiceType(voice)
+    {
+        if (voice.localService)
+        {
+            return "offline";
+        }
+        return "online";
+    }
+
+    function GetVoice(voice_type, voice_name, lang)
+    {
+        return FilterVoices(voice_type, voice_name, lang, speech_synth.getVoices())[0];
+    }
+
+    function FilterVoices(voice_type, voice_name, lang, voice_list)
+    {
+        let filtered_voice_list = [];
+
+        for (const voice of voice_list)
+        {
+            if (
+                (voice_name == "" || voice.name.toLowerCase().includes(voice_name.toLowerCase())) &&
+                (voice_type == "both" || voice_type == GetVoiceServiceType(voice)) &&
+                (lang == "" || voice.lang.toLowerCase().includes(lang.toLowerCase()))
+            )
+            {
+                filtered_voice_list.push(voice);
+            }
+        }
+        return filtered_voice_list;
+    }
+
+    function UI_LoadVoicesIntoHTML()
+    {
+        // Get voices and sort it by language
+        let voices = speech_synth.getVoices().sort(function (a, b) {
+        const alang = a.lang.toUpperCase();
+        const blang = b.lang.toUpperCase();
+
+        if (alang < blang) {return -1;}
+        else if (alang == blang) {return 0;}
+        else {return +1;}
+        });
+
+        voices = FilterVoices(
+            document.querySelector('input[name="utterance_voice_type"]:checked').value, document.getElementById("utterance_voice").value, document.getElementById("utterance_lang").value, voices);
+
+        // Build HTML
+        voice_list = "";
+
+        for (const voice of voices)
+        {
+            const voice_func = `console.log(GetVoice(\'${GetVoiceServiceType(voice)}\', \'${voice.name}\', \'${voice.lang}\'))`;
+
+            voice_list += `<div><input type="radio" id="voice_${voice.name}" name="utterance_voice_radio" onclick="${voice_func}"><label for="voice_${voice.name}">${voice.lang} - ${voice.name}</label></div>`;
+        }
+
+        // Insert HTML
+        voice_list_html.innerHTML = voice_list;
+    }
+
+    // Voice load
+    speech_synth.addEventListener("voiceschanged", (event) => 
+    {
+        UI_LoadVoicesIntoHTML();
+    });
+
+    // Voice selection
+    // name
+    document.getElementById("utterance_voice").addEventListener("input", ()=>
+    {
+        UI_LoadVoicesIntoHTML()
+    });
+
+    document.getElementById("utterance_lang").addEventListener("input", ()=>
+    {
+        UI_LoadVoicesIntoHTML()
+    });
+
+    for (const radio of document.querySelectorAll('input[name="utterance_voice_type"]'))
+    {
+        radio.addEventListener("change", ()=>
+        {
+            UI_LoadVoicesIntoHTML()
+        })
+    };
+
     // --------------------------- Unit tests --------------------------- //
     
     class UnitTests
@@ -528,7 +624,9 @@
             for (const test_name in this.tests)
             {
                 // Run the test
-                const test_result = this.tests[test_name]();
+                const test_return = this.tests[test_name]();
+                const test_result = test_return.result;
+                const test_msg = test_return.msg;
 
                 if (test_result == true)
                 {
@@ -536,7 +634,7 @@
                 }
                 else
                 {
-                    console.error(`${test_name}: FAILED`)
+                    console.error(`${test_name}: FAILED - MESSAGE -> \n${test_msg}`)
                 }
             }
 
@@ -547,10 +645,20 @@
     
     UnitTestsInstance.add("WrapTextInSpan_regularCase", () =>
     {
-        let input = `Just a simple text thatIwant to test right away! Okay with me...`;
+        let text = `Just a simple text thatIwant to test right away! Okay with me...`;
+        let input = WrapTextInSpan(text);
         let expect = `<span id="input_text_word_0">Just</span> <span id="input_text_word_5">a</span> <span id="input_text_word_7">simple</span> <span id="input_text_word_14">text</span> <span id="input_text_word_19">thatIwant</span> <span id="input_text_word_29">to</span> <span id="input_text_word_32">test</span> <span id="input_text_word_37">right</span> <span id="input_text_word_43">away!</span> <span id="input_text_word_49">Okay</span> <span id="input_text_word_54">with</span> <span id="input_text_word_59">me...</span>`;
-        let result = WrapTextInSpan(input) == expect;
-        return result
+        let result = input == expect;
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
+
+    UnitTestsInstance.add("WrapTextInSpan_Space", () =>
+    {
+        let text = ` Just a simple text thatIwant to test right away! Okay with me... `;
+        let input = WrapTextInSpan(text);
+        let expect = ` <span id="input_text_word_1">Just</span> <span id="input_text_word_6">a</span> <span id="input_text_word_8">simple</span> <span id="input_text_word_15">text</span> <span id="input_text_word_20">thatIwant</span> <span id="input_text_word_30">to</span> <span id="input_text_word_33">test</span> <span id="input_text_word_38">right</span> <span id="input_text_word_44">away!</span> <span id="input_text_word_50">Okay</span> <span id="input_text_word_55">with</span> <span id="input_text_word_60">me...</span> `;
+        let result = input == expect;
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
     });
 
     UnitTestsInstance.run();
