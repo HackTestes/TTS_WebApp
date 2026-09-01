@@ -51,12 +51,17 @@
             grid-column-start: 1;
         }
 
+        #TextViewer
+        {
+            white-space: pre-wrap;
+        }
+
         .TextPreview
         {
             opacity: 50%;
         }
 
-        mark
+        .mark
         {
             background-color: rgb(134, 175, 255);
         }
@@ -156,10 +161,12 @@
             <div id="SkipTo"></div>
 
             <div id="TextViewer">
+                <!--
                 <div class="TextPreview" id="TextViewer_Previous">Previous text</div>
                 <span>Text representing what is being <mark id="TextPreview_CurrentWord">read</mark></span>
                 <div class="TextPreview" id="TextViewer_After">Text that comes after</div>
                 <div id="Time">Time passed - 12:00 | Estimated total time - 15:00 | Estimated remaining time - 20:00</div>
+                -->
             </div>
 
             <!--Controls-->
@@ -287,7 +294,7 @@
                 </div>
             </form>
 
-            </hr>
+            <hr>
 
             <form action="" id="AdvancedSettings">
 
@@ -306,6 +313,7 @@
 
     const settings_page = document.getElementById("PageSettings");
     const close_settings_btn = document.getElementById("close_settings");
+    const utterance_text_selector = document.getElementById("utterance_text");
     // Voice settings
     const voice_list_html = document.getElementById("voice_list");
     const utterance_voice_search = document.getElementById("utterance_voice_search");
@@ -338,15 +346,43 @@
     // https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API
     const speech_synth = window.speechSynthesis;
     // Use defauLt values from the HTML
+    /*
     let utterance_rate = utterance_rate_selector.value;
     let utterance_pitch = utterance_pitch_selector.value;
     let utterance_volume = utterance_volume_selector.value;
+    */
     let utterance_text = "";
-    let utterance_voice = new SpeechSynthesisUtterance();
+    let utterance_voice = undefined;
     let utterance = undefined;
 
     // Keep track of play status manually and "ignore" the one returned by the WebSpeech API, since it might be buggy
     let speech_playing = false;
+
+    function AddUtteranceToTtsQueue()
+    {
+        utterance = new SpeechSynthesisUtterance(utterance_text);
+        utterance.rate = utterance_rate_selector.value;
+        utterance.pitch = utterance_pitch_selector.value;
+        utterance.volume = utterance_volume_selector.value;
+        utterance.voice = utterance_voice;
+
+        utterance.onboundary = (event) =>
+        {
+            text_viewer.innerHTML = WrapWordInSpan(utterance_text, event.charIndex);
+
+            if (speech_playing == true)
+            {
+                // Chrome workaround: the browser needs continuously to get resume calls or the TTS stops playing
+                speech_synth.resume();
+                console.log("resume");
+            }
+        };
+
+        // Clear the queue before sending a new utterance
+        // This is a workaround for Safari and MS Edge (mobile)
+        speech_synth.cancel();
+        speech_synth.speak(utterance);
+    }
 
     function ClickActions(event)
     {
@@ -451,14 +487,23 @@
 
     function PlayPause()
     {
+        if (utterance == undefined)
+        {
+            AddUtteranceToTtsQueue();
+        }
+
         if (speech_playing == true)
         {
             console.log("Pause");
+            speech_playing = false;
+            speech_synth.pause();
         }
 
         else
         {
             console.log("Play");
+            speech_playing = true;
+            speech_synth.resume();
         }
     }
 
@@ -547,7 +592,110 @@
         return final_html_text;
     }
 
+    function WrapWordInSpan(input_str, start_index)
+    {
+        let final_html_text = ""
+        let span_open = false
+        let subtring_size = 0
+
+        // Loop over every word
+        for (let i = start_index; i < input_str.length; i++)
+        {
+            const char = input_str[i];
+
+            // It is a character AND we haven't opened a span tag
+            if (IsCharacter(char) && span_open == false)
+            {
+                span_open = true;
+
+                // Add a span tag with an ID that corresponds to its index in the text array
+                // This makes it easy to target a word in the HTML using the original's text index
+                final_html_text += `<span id=\"input_text_word_${i}\" class="mark">`
+                final_html_text += char;
+                subtring_size += 1;
+                continue
+            }
+
+            // It is a character AND we have already opened a span tag
+            if (IsCharacter(char) && span_open == true)
+            {
+                // We just add the character
+                final_html_text += char;
+                subtring_size += 1;
+
+                // If we are at the end of the string, just close it
+                if (i == input_str.length-1)
+                {
+                    span_open = false;
+                    final_html_text += `</span>`
+                    break
+                }
+                continue
+            }
+
+            // It isn't a character AND we have already opened a span tag
+            if (!IsCharacter(char) && span_open == true)
+            {
+                // Close it then
+                span_open = false;
+                final_html_text += `</span>`
+                break
+            }
+
+            // It isn't a character AND we have NOT opened a span tag
+            if (!IsCharacter(char) && span_open == false)
+            {
+                // We just add the character
+                final_html_text += char;
+                continue
+            }
+        }
+
+        return input_str.slice(0,start_index) + final_html_text + input_str.slice(subtring_size+start_index);
+    }
+
     // Settings
+    // File
+    utterance_text_selector.addEventListener('change', function(event)
+    {
+        // Get the selected file
+        const file = event.target.files[0];
+
+        if (!file)
+        {
+            // Exit if no file was selected
+            return;
+        }
+
+        // Create a new FileReader instance
+        const reader = new FileReader();
+
+        // Define what happens when the file is successfully read
+        reader.onload = (e) =>
+        {
+            const contents = e.target.result;
+
+            // Save the clean text for the TTS engine to read it
+            utterance_text = contents;
+
+            // Pre-process the text and then load it
+            // We do it like this because it allows us to query the exact words that the TTS it reading by using the string index
+            // It also allows us to change the style of each element without triggering a full layout recalculation
+            //const preprocessed_text = WrapTextInSpan(contents);
+            text_viewer.innerHTML = contents; // Load it
+        };
+
+        // Define what happens in case of an error
+        reader.onerror = (e) =>
+        {
+            alert("Error reading file", e);
+        };
+
+        // Trigger the read process (reads the file as a text string)
+        reader.readAsText(file, "utf8");
+    });
+
+
     // Voice synth functions
     function GetVoiceServiceType(voice)
     {
@@ -716,6 +864,16 @@
         let text = ` Just a simple text thatIwant to test right away! Okay with me... `;
         let input = WrapTextInSpan(text);
         let expect = ` <span id="input_text_word_1">Just</span> <span id="input_text_word_6">a</span> <span id="input_text_word_8">simple</span> <span id="input_text_word_15">text</span> <span id="input_text_word_20">thatIwant</span> <span id="input_text_word_30">to</span> <span id="input_text_word_33">test</span> <span id="input_text_word_38">right</span> <span id="input_text_word_44">away!</span> <span id="input_text_word_50">Okay</span> <span id="input_text_word_55">with</span> <span id="input_text_word_60">me...</span> `;
+        let result = input == expect;
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
+
+    UnitTestsInstance.add("WrapWordInSpan_Space", () =>
+    {
+        let text = `Try to spanMe, okay!`;
+        let target = "spanMe"
+        let input = WrapWordInSpan(text, text.indexOf(target));
+        let expect = `Try to <span id="input_text_word_7">spanMe,</span> okay!`;
         let result = input == expect;
         return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
     });
