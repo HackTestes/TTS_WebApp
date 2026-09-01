@@ -199,6 +199,21 @@
                     <input type="file" id="utterance_text" name="utterance_text">
                 </div>
 
+                <div id="utterance_rate_group">
+                    <label for="utterance_rate">Rate (0.1 - 10):</label>
+                    <input type="number" id="utterance_rate" name="utterance_rate" min="0.1" max="10" step="0.1" value="5">
+                </div>
+
+                <div id="utterance_pitch_group">
+                    <label for="utterance_pitch">Pitch (0 - 2):</label>
+                    <input type="number" id="utterance_pitch" name="utterance_pitch" min="0" max="2" step="0.1" value="0">
+                </div>
+
+                <div id="utterance_volume_group">
+                    <label for="utterance_volume">Volume (0 - 1):</label>
+                    <input type="number" id="utterance_volume" name="utterance_volume" min="0" max="1" step="0.1" value="1">
+                </div>
+
                 <div id="utterance_voice_type_group">
                     <legend for="utterance_voice_type">Voice type:</legend>
 
@@ -219,31 +234,16 @@
                 </div>
 
                 <div id="utterance_lang_group">
-                    <label for="utterance_lang">Language:</label>
-                    <input type="text" id="utterance_lang" name="utterance_lang" placeholder="en-US">
+                    <label for="utterance_lang_search">Language:</label>
+                    <input type="text" id="utterance_lang_search" name="utterance_lang_search" placeholder="en-US">
                 </div>
 
                 <div id="utterance_voice_group">
-                    <label for="utterance_voice">Voice:</label>
-                    <input type="text" id="utterance_voice" name="utterance_voice" placeholder="tts_voice">
+                    <label for="utterance_voice_search">Voice name:</label>
+                    <input type="text" id="utterance_voice_search" name="utterance_voice_search" placeholder="tts_voice">
 
                     <!--Empty by default, it should be populated by the JS when it requests the available voices-->
                     <div id="voice_list"></div>
-                </div>
-
-                <div id="utterance_rate_group">
-                    <label for="utterance_rate">Rate (0.1 - 10):</label>
-                    <input type="number" id="utterance_rate" name="utterance_rate" min="0.1" max="10" step="0.1" value="5">
-                </div>
-
-                <div id="utterance_pitch_group">
-                    <label for="utterance_pitch">Pitch (0 - 2):</label>
-                    <input type="number" id="utterance_pitch" name="utterance_pitch" min="0" max="2" step="0.1" value="0">
-                </div>
-
-                <div id="utterance_volume_group">
-                    <label for="utterance_volume">Volume (0 - 1):</label>
-                    <input type="number" id="utterance_volume" name="utterance_volume" min="0" max="1" step="0.1" value="1">
                 </div>
             </form>
 
@@ -256,13 +256,18 @@
                     <input type="checkbox" id="media_control_settings_replay" name="media_control_settings_replay" checked>
                 </div>
 
+                <div id="media_control_settings_ScrollToView_group">
+                    <label for="media_control_settings_ScrollToView">Scroll to View:</label>
+                    <input type="checkbox" id="media_control_settings_ScrollToView" name="media_control_settings_ScrollToView" checked>
+                </div>
+
                 <div id="media_control_settings_input_latency_group">
                     <label for="media_control_settings_input_latency">Input latenecy in miliseconds (ms):</label>
                     <input type="number" id="media_control_settings_input_latency" name="media_control_settings_input_latency" value="200">
                 </div>
 
                 <div id="media_control_settings_fastFoward_speed_group">
-                    <label for="media_control_settings_fastFoward_speed">FastForward hold speed in milisencods (lower is faster):</label>
+                    <label for="media_control_settings_fastFoward_speed">FastForward hold speed in miliseconds (lower is faster):</label>
                     <input type="number" id="media_control_settings_fastFoward_speed" name="media_control_settings_fastFoward_speed" value="200">
                 </div>
 
@@ -272,7 +277,7 @@
                 </div>
 
                 <div id="media_control_settings_rewind_speed_group">
-                    <label for="media_control_settings_rewind_speed">Rewind hold speed in milisencods (lower is faster):</label>
+                    <label for="media_control_settings_rewind_speed">Rewind hold speed in miliseconds (lower is faster):</label>
                     <input type="number" id="media_control_settings_rewind_speed" name="media_control_settings_rewind_speed" value="200">
                 </div>
 
@@ -281,33 +286,67 @@
                     <input type="number" id="media_control_settings_rewind_word_skip" name="media_control_settings_rewind_word_skip" value="10">
                 </div>
             </form>
+
+            </hr>
+
+            <form action="" id="AdvancedSettings">
+
+                <div id="chrome_workaround_toggle_group">
+                    <label for="chrome_workaround_toggle">Enable Chrome workarounds:</label>
+                    <input type="checkbox" id="chrome_workaround_toggle" name="chrome_workaround_toggle" checked>
+                </div>
+
+            </form>
         </div>
     </div>
 </body>
 <script>
+    const main_page = document.getElementById("PageMain");
+    const text_viewer = document.getElementById("TextViewer");
+
+    const settings_page = document.getElementById("PageSettings");
+    const close_settings_btn = document.getElementById("close_settings");
+    // Voice settings
+    const voice_list_html = document.getElementById("voice_list");
+    const utterance_voice_search = document.getElementById("utterance_voice_search");
+    const utterance_lang_search = document.getElementById("utterance_lang_search");
+    const utterance_voice_type_radio_btns = document.querySelectorAll('input[name="utterance_voice_type"]');
+    const utterance_rate_selector = document.getElementById("utterance_rate");
+    const utterance_pitch_selector = document.getElementById("utterance_pitch");
+    const utterance_volume_selector = document.getElementById("utterance_volume");
+    // Media control settings
+    const replay_toggle = document.getElementById("media_control_settings_replay");
+    const scroll_to_view_toggle = document.getElementById("media_control_settings_ScrollToView");
+    const input_latency_selector = document.getElementById("media_control_settings_input_latency");
+    const fastFoward_hold_speed_interval_selector = document.getElementById("media_control_settings_fastFoward_speed");
+    const fastFoward_word_skip_selector = document.getElementById("media_control_settings_fastFoward_word_skip");
+    const rewind_hold_speed_interval_selector = document.getElementById("media_control_settings_rewind_speed");
+    const rewind_word_skip_selector = document.getElementById("media_control_settings_rewind_word_skip");
+    // Advanced settings
+    const chrome_workaround_toggle = document.getElementById("chrome_workaround_toggle");
+
+    // Media control overlay
+    const media_control_overlay = document.getElementById("media-control-overlay");
+    const media_control_front = document.getElementById("media-control-front");
+    const media_control_back = document.getElementById("media-control-back");
+
+    // Used to keep track of inputs between multiple events, this is why they are global
+    let global_timer;
+    let global_interval;
+    let key_hold = false;
 
     // https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API
     const speech_synth = window.speechSynthesis;
+    // Use defauLt values from the HTML
+    let utterance_rate = utterance_rate_selector.value;
+    let utterance_pitch = utterance_pitch_selector.value;
+    let utterance_volume = utterance_volume_selector.value;
+    let utterance_text = "";
+    let utterance_voice = new SpeechSynthesisUtterance();
     let utterance = undefined;
 
     // Keep track of play status manually and "ignore" the one returned by the WebSpeech API, since it might be buggy
     let speech_playing = false;
-
-    const main_page = document.getElementById("PageMain");
-
-    const settings_page = document.getElementById("PageSettings");
-    const close_settings_btn = document.getElementById("close_settings");
-    const voice_list_html = document.getElementById("voice_list");
-
-    const media_control_overlay = document.getElementById("media-control-overlay");
-    const media_control_front = document.getElementById("media-control-front");
-    const media_control_back = document.getElementById("media-control-back");
-    const media_control_delay = 200; //in ms (miliseconda)
-    let media_control_hold_speed_interval = 200;
-
-    let global_timer;
-    let global_interval;
-    let key_hold = false;
 
     function ClickActions(event)
     {
@@ -323,7 +362,7 @@
         if (event.detail == 1)
         {
             clearTimeout(global_timer);
-            global_timer = setTimeout(()=>{PlayPause(speech_synth)}, media_control_delay);
+            global_timer = setTimeout(()=>{PlayPause(speech_synth)}, input_latency_selector.value);
         }
 
         // To be able to spam the button without triggering other actions, it is necessary to perform the action immediately (otherwiser the clearTimeout clears) and look for clicks higher or equal than 2
@@ -335,12 +374,12 @@
 
             if (event.srcElement.id == "media-control-front")
             {
-                global_timer = setTimeout(()=>{FastForward("", 0, 0)}, media_control_delay);
+                global_timer = setTimeout(()=>{FastForward("", 0, 0)}, input_latency_selector.value);
             }
 
             else if (event.srcElement.id == "media-control-back")
             {
-                global_timer = setTimeout(()=>{Rewind("", 0, 0)}, media_control_delay);
+                global_timer = setTimeout(()=>{Rewind("", 0, 0)}, input_latency_selector.value);
             }
         }
 
@@ -348,7 +387,7 @@
         {
             // Cancel the previous event and also wait a bit
             clearTimeout(global_timer)
-            global_timer = setTimeout(()=>{ShowSettings()}, media_control_delay);
+            global_timer = setTimeout(()=>{ShowSettings()}, input_latency_selector.value);
         }
     }
 
@@ -361,12 +400,12 @@
         // Wait a bit of time and then execute continously the same thing
         if (event.srcElement.id == "media-control-front")
         {
-            global_timer = setTimeout(() => { global_interval = setInterval(()=>{key_hold = true; FastForward("", 0, 0)}, media_control_hold_speed_interval) }, media_control_delay);
+            global_timer = setTimeout(() => { global_interval = setInterval(()=>{key_hold = true; FastForward("", 0, 0)}, fastFoward_hold_speed_interval_selector.value) }, input_latency_selector.value);
         }
 
         else if (event.srcElement.id == "media-control-back")
         {
-            global_timer = setTimeout(() => { global_interval = setInterval(()=>{key_hold = true; Rewind("", 0, 0)}, media_control_hold_speed_interval) }, media_control_delay);
+            global_timer = setTimeout(() => { global_interval = setInterval(()=>{key_hold = true; Rewind("", 0, 0)}, rewind_hold_speed_interval_selector.value) }, input_latency_selector.value);
         }
         //console.log("mousedown")
     }
@@ -508,11 +547,11 @@
         return final_html_text;
     }
 
+    // Settings
     // Voice synth functions
-
     function GetVoiceServiceType(voice)
     {
-        if (voice.localService)
+        if (voice.localService == true)
         {
             return "offline";
         }
@@ -530,6 +569,7 @@
 
         for (const voice of voice_list)
         {
+            // If the value is unset, consider it a match
             if (
                 (voice_name == "" || voice.name.toLowerCase().includes(voice_name.toLowerCase())) &&
                 (voice_type == "both" || voice_type == GetVoiceServiceType(voice)) &&
@@ -546,23 +586,24 @@
     {
         // Get voices and sort it by language
         let voices = speech_synth.getVoices().sort(function (a, b) {
-        const alang = a.lang.toUpperCase();
-        const blang = b.lang.toUpperCase();
+            const alang = a.lang.toUpperCase();
+            const blang = b.lang.toUpperCase();
 
-        if (alang < blang) {return -1;}
-        else if (alang == blang) {return 0;}
-        else {return +1;}
+            if (alang < blang) {return -1;}
+            else if (alang == blang) {return 0;}
+            else {return +1;}
         });
 
+        // Filter the voices before loading into the DOM
         voices = FilterVoices(
-            document.querySelector('input[name="utterance_voice_type"]:checked').value, document.getElementById("utterance_voice").value, document.getElementById("utterance_lang").value, voices);
+            document.querySelector('input[name="utterance_voice_type"]:checked').value, utterance_voice_search.value, utterance_lang_search.value, voices);
 
-        // Build HTML
+        // Build HTML string
         voice_list = "";
 
         for (const voice of voices)
         {
-            const voice_func = `console.log(GetVoice(\'${GetVoiceServiceType(voice)}\', \'${voice.name}\', \'${voice.lang}\'))`;
+            const voice_func = `utterance_voice = GetVoice(\'${GetVoiceServiceType(voice)}\', \'${voice.name}\', \'${voice.lang}\')`;
 
             voice_list += `<div><input type="radio" id="voice_${voice.name}" name="utterance_voice_radio" onclick="${voice_func}"><label for="voice_${voice.name}">${voice.lang} - ${voice.name}</label></div>`;
         }
@@ -578,24 +619,42 @@
     });
 
     // Voice selection
-    // name
-    document.getElementById("utterance_voice").addEventListener("input", ()=>
+    // Name search
+    utterance_voice_search.addEventListener("input", ()=>
     {
         UI_LoadVoicesIntoHTML()
     });
 
-    document.getElementById("utterance_lang").addEventListener("input", ()=>
+    // Language search
+    utterance_lang_search.addEventListener("input", ()=>
     {
         UI_LoadVoicesIntoHTML()
     });
 
-    for (const radio of document.querySelectorAll('input[name="utterance_voice_type"]'))
+    // Voice type search
+    for (const radio of utterance_voice_type_radio_btns)
     {
         radio.addEventListener("change", ()=>
         {
             UI_LoadVoicesIntoHTML()
         })
     };
+
+    // Update values on change
+    utterance_rate_selector.addEventListener("change", ()=>
+    {
+        utterance_rate = utterance_rate_selector.value;
+    });
+
+    utterance_pitch_selector.addEventListener("change", ()=>
+    {
+        utterance_pitch = utterance_pitch_selector.value;
+    });
+
+    utterance_volume_selector.addEventListener("change", ()=>
+    {
+        utterance_volume = utterance_volume_selector.value;
+    });
 
     // --------------------------- Unit tests --------------------------- //
     
