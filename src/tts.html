@@ -20,7 +20,7 @@
         .Page
         {
             height: 100vh;
-            width: 100vw;
+            width: 98vw;
             background-color: white;
         }
 
@@ -51,15 +51,17 @@
             grid-column-start: 1;
         }
 
+        #TextViewer
+        {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
         #TextViewer .TextPreview, #TextViewer mark
         {
             display: inline;
-            white-space: pre-wrap;
-        }
-
-        .TextPreview
-        {
-            opacity: 50%;
+            white-space: pre-line;
         }
 
         mark
@@ -79,7 +81,7 @@
             display: flex;
             flex-direction: row;
             position: fixed;
-            opacity: 50%;
+            opacity: 25%;
         }
 
         #media-control-back
@@ -264,8 +266,8 @@
                 </div>
 
                 <div id="media_control_settings_ScrollToView_group">
-                    <label for="media_control_settings_ScrollToView">Scroll to View:</label>
-                    <input type="checkbox" id="media_control_settings_ScrollToView" name="media_control_settings_ScrollToView" checked>
+                    <label for="media_control_settings_ScrollToView">Scroll to View (increases CPU usage):</label>
+                    <input type="checkbox" id="media_control_settings_ScrollToView" name="media_control_settings_ScrollToView">
                 </div>
 
                 <div id="media_control_settings_input_latency_group">
@@ -348,45 +350,115 @@
 
     // https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API
     const speech_synth = window.speechSynthesis;
-    // Use defauLt values from the HTML
-    /*
-    let utterance_rate = utterance_rate_selector.value;
-    let utterance_pitch = utterance_pitch_selector.value;
-    let utterance_volume = utterance_volume_selector.value;
-    */
+    // Holds the full text, in case we only need a substring for the utterance
+    let utterance_original_text = "";
     let utterance_text = "";
     let utterance_voice = undefined;
     let utterance = undefined;
+    // character absolute index (relative to the full text) of where the TTS is currently at
+    let current_char = 0;
+
+    // Keep track of changes on voice settings
+    // If we detect any changes, reload the TTS with the applied changes
+    let voice_changed = false;
+
+    // Keep track of new files added
+    // If a new file was loaded but has not been added to the TTS, this should be TRUE
+    // If the file was already added to the TTS as an utterance, this should be FALSE
+    let new_file = false;
 
     // Keep track of play status manually and "ignore" the one returned by the WebSpeech API, since it might be buggy
     let speech_playing = false;
 
-    function AddUtteranceToTtsQueue()
+    // This function assumes that the substring goes all the all to the end.
+    /* // ----------------- FULL STRING ----------------- //
+                          // -------- SUB-STRING -------- // <-- This works
+                                // ----- SUB-STRING ----- // <-- This works
+                // -------- SUB-STRING -------- //           <-- This doesn't work
+    */
+    // curren_char_idx is relative to the sub_str
+    function GetAbsoluteCharIndexFromSubstring(full_str, sub_str, curren_char_idx)
     {
-        utterance = new SpeechSynthesisUtterance(utterance_text);
-        utterance.rate = utterance_rate_selector.value;
-        utterance.pitch = utterance_pitch_selector.value;
-        utterance.volume = utterance_volume_selector.value;
-        utterance.voice = utterance_voice;
+        return (full_str.length - sub_str.length) + curren_char_idx;
+    }
 
+    function ScrollToView(html_element, toggle)
+    {
+        if (toggle == true)
+        {
+            html_element.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+        }
+    }
+
+    function CreateUtterance(urate, upitch, uvolume, uvoice, utext)
+    {
+        let utterance = new SpeechSynthesisUtterance(utext);
+        utterance.rate = urate;
+        utterance.pitch = upitch;
+        utterance.volume = uvolume;
+        utterance.voice = uvoice;
+        utterance_text = utext;
+
+        // Attach to the events
         utterance.onboundary = (event) =>
         {
-            text_viewer_before.textContent = utterance_text.slice(0, event.charIndex);
-            text_viewer_current_word.textContent = utterance_text.slice(event.charIndex, event.charIndex+event.charLength);
-            text_viewer_after.textContent = utterance_text.slice(event.charIndex+event.charLength);
+            const absolute_char_idx = GetAbsoluteCharIndexFromSubstring(utterance_original_text, utterance_text, event.charIndex);
+
+            // Update the UI using the full text and not just the slice given to the TTS
+            if (scroll_to_view_toggle.checked == true)
+            {
+                text_viewer_before.textContent = utterance_original_text.slice(0, absolute_char_idx);
+                text_viewer_current_word.textContent = utterance_original_text.slice(absolute_char_idx, absolute_char_idx+event.charLength);
+                text_viewer_after.textContent = utterance_original_text.slice(absolute_char_idx+event.charLength);
+
+                ScrollToView(text_viewer_current_word, scroll_to_view_toggle.checked);
+            }
 
             if (speech_playing == true)
             {
                 // Chrome workaround: the browser needs continuously to get resume calls or the TTS stops playing
                 speech_synth.resume();
-                console.log("resume");
+
+                // Update the charIndex as it speaks
+                current_char = absolute_char_idx;
+            }
+
+        };
+
+        utterance.onend = (event) =>
+        {
+            // Only replay if enabled
+            if (replay_toggle.checked == true)
+            {
+                // Recreate the utterance
+                // Is this recursion safe?????
+                utterance = CreateUtterance(urate, upitch, uvolume, uvoice, utterance_original_text)
+                AddUtteranceToTtsQueue(utterance);
             }
         };
+
+        return utterance
+    }
+
+    // This is a new fuction to accomodate all the browser workarounds
+    function AddUtteranceToTtsQueue(utterance_instance)
+    {
 
         // Clear the queue before sending a new utterance
         // This is a workaround for Safari and MS Edge (mobile)
         speech_synth.cancel();
-        speech_synth.speak(utterance);
+
+        if (chrome_workaround_toggle.checked == false)
+        {
+            // The Chrome browser requires the explicit use of the lang parameter (even if it is optional)
+            // and it also uses a different sperator char
+            speech_synth.speak(utterance_instance, utterance_voice.lang.replace("-", "_"));
+        }
+        // Default
+        else
+        {
+            speech_synth.speak(utterance_instance, utterance_voice.lang);
+        }
     }
 
     function ClickActions(event)
@@ -492,23 +564,46 @@
 
     function PlayPause()
     {
+        // There is no utterance
         if (utterance == undefined)
         {
-            AddUtteranceToTtsQueue();
+            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text);
+            AddUtteranceToTtsQueue(utterance);
+        }
+
+        // A new file was loaded, try again
+        if (new_file == true)
+        {
+            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text);
+            AddUtteranceToTtsQueue(utterance);
+
+            // Reset the bool
+            new_file = false;
+        }
+
+        // Some parameters of the voice changed
+        if (voice_changed == true)
+        {
+            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text.slice(current_char));
+            AddUtteranceToTtsQueue(utterance);
+
+            // Reset the bool
+            voice_changed = false;
         }
 
         if (speech_playing == true)
         {
             console.log("Pause");
             speech_playing = false;
-            speech_synth.pause();
+            speech_synth.cancel();
         }
 
         else
         {
             console.log("Play");
             speech_playing = true;
-            speech_synth.resume();
+            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text.slice(current_char));
+            AddUtteranceToTtsQueue(utterance);
         }
     }
 
@@ -560,9 +655,13 @@
             const contents = e.target.result;
 
             // Save the clean text for the TTS engine to read it
+            utterance_original_text = contents;
             utterance_text = contents;
 
             text_viewer_before.textContent = contents; // Load it
+            
+            // Notify to the rest of the program that a new file was loaded
+            new_file = true;
         };
 
         // Define what happens in case of an error
