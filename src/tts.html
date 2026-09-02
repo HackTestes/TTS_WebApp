@@ -51,8 +51,9 @@
             grid-column-start: 1;
         }
 
-        #TextViewer
+        #TextViewer .TextPreview, #TextViewer mark
         {
+            display: inline;
             white-space: pre-wrap;
         }
 
@@ -61,8 +62,10 @@
             opacity: 50%;
         }
 
-        .mark
+        mark
         {
+            margin: 0;
+            padding: 0;
             background-color: rgb(134, 175, 255);
         }
 
@@ -161,12 +164,9 @@
             <div id="SkipTo"></div>
 
             <div id="TextViewer">
-                <!--
-                <div class="TextPreview" id="TextViewer_Previous">Previous text</div>
-                <span>Text representing what is being <mark id="TextPreview_CurrentWord">read</mark></span>
-                <div class="TextPreview" id="TextViewer_After">Text that comes after</div>
+                <!--The divs must be on the same line or it will add whitespace between each element, which asdds a distracting space during TTS reads-->
+                <div class="TextPreview" id="TextViewer_Before">INSERT TEXT</div><mark id="TextViewer_CurrentWord"></mark><div class="TextPreview" id="TextViewer_After"></div>
                 <div id="Time">Time passed - 12:00 | Estimated total time - 15:00 | Estimated remaining time - 20:00</div>
-                -->
             </div>
 
             <!--Controls-->
@@ -310,6 +310,9 @@
 <script>
     const main_page = document.getElementById("PageMain");
     const text_viewer = document.getElementById("TextViewer");
+    const text_viewer_before = document.getElementById("TextViewer_Before");
+    const text_viewer_current_word = document.getElementById("TextViewer_CurrentWord");
+    const text_viewer_after = document.getElementById("TextViewer_After");
 
     const settings_page = document.getElementById("PageSettings");
     const close_settings_btn = document.getElementById("close_settings");
@@ -368,7 +371,9 @@
 
         utterance.onboundary = (event) =>
         {
-            text_viewer.innerHTML = WrapWordInSpan(utterance_text, event.charIndex);
+            text_viewer_before.textContent = utterance_text.slice(0, event.charIndex);
+            text_viewer_current_word.textContent = utterance_text.slice(event.charIndex, event.charIndex+event.charLength);
+            text_viewer_after.textContent = utterance_text.slice(event.charIndex+event.charLength);
 
             if (speech_playing == true)
             {
@@ -533,127 +538,6 @@
         return false
     }
 
-    function WrapTextInSpan(input_str)
-    {
-        let final_html_text = ""
-        let span_open = false
-
-        // Loop over every word
-        for (let i = 0; i < input_str.length; i++)
-        {
-            const char = input_str[i];
-
-            // It is a character AND we haven't opened a span tag
-            if (IsCharacter(char) && span_open == false)
-            {
-                span_open = true;
-
-                // Add a span tag with an ID that corresponds to its index in the text array
-                // This makes it easy to target a word in the HTML using the original's text index
-                final_html_text += `<span id=\"input_text_word_${i}\">`
-                final_html_text += char;
-                continue
-            }
-
-            // It is a character AND we have already opened a span tag
-            if (IsCharacter(char) && span_open == true)
-            {
-                // We just add the character
-                final_html_text += char;
-
-                // If we are at the end of the string, just close it
-                if (i == input_str.length-1)
-                {
-                    span_open = false;
-                    final_html_text += `</span>`
-                }
-                continue
-            }
-
-            // It isn't a character AND we have already opened a span tag
-            if (!IsCharacter(char) && span_open == true)
-            {
-                // Close it then
-                span_open = false;
-                final_html_text += `</span>`
-                final_html_text += char;
-                continue
-            }
-
-            // It isn't a character AND we have NOT opened a span tag
-            if (!IsCharacter(char) && span_open == false)
-            {
-                // We just add the character
-                final_html_text += char;
-                continue
-            }
-        }
-
-        return final_html_text;
-    }
-
-    function WrapWordInSpan(input_str, start_index)
-    {
-        let final_html_text = ""
-        let span_open = false
-        let subtring_size = 0
-
-        // Loop over every word
-        for (let i = start_index; i < input_str.length; i++)
-        {
-            const char = input_str[i];
-
-            // It is a character AND we haven't opened a span tag
-            if (IsCharacter(char) && span_open == false)
-            {
-                span_open = true;
-
-                // Add a span tag with an ID that corresponds to its index in the text array
-                // This makes it easy to target a word in the HTML using the original's text index
-                final_html_text += `<span id=\"input_text_word_${i}\" class="mark">`
-                final_html_text += char;
-                subtring_size += 1;
-                continue
-            }
-
-            // It is a character AND we have already opened a span tag
-            if (IsCharacter(char) && span_open == true)
-            {
-                // We just add the character
-                final_html_text += char;
-                subtring_size += 1;
-
-                // If we are at the end of the string, just close it
-                if (i == input_str.length-1)
-                {
-                    span_open = false;
-                    final_html_text += `</span>`
-                    break
-                }
-                continue
-            }
-
-            // It isn't a character AND we have already opened a span tag
-            if (!IsCharacter(char) && span_open == true)
-            {
-                // Close it then
-                span_open = false;
-                final_html_text += `</span>`
-                break
-            }
-
-            // It isn't a character AND we have NOT opened a span tag
-            if (!IsCharacter(char) && span_open == false)
-            {
-                // We just add the character
-                final_html_text += char;
-                continue
-            }
-        }
-
-        return input_str.slice(0,start_index) + final_html_text + input_str.slice(subtring_size+start_index);
-    }
-
     // Settings
     // File
     utterance_text_selector.addEventListener('change', function(event)
@@ -678,11 +562,7 @@
             // Save the clean text for the TTS engine to read it
             utterance_text = contents;
 
-            // Pre-process the text and then load it
-            // We do it like this because it allows us to query the exact words that the TTS it reading by using the string index
-            // It also allows us to change the style of each element without triggering a full layout recalculation
-            //const preprocessed_text = WrapTextInSpan(contents);
-            text_viewer.innerHTML = contents; // Load it
+            text_viewer_before.textContent = contents; // Load it
         };
 
         // Define what happens in case of an error
@@ -788,22 +668,6 @@
         })
     };
 
-    // Update values on change
-    utterance_rate_selector.addEventListener("change", ()=>
-    {
-        utterance_rate = utterance_rate_selector.value;
-    });
-
-    utterance_pitch_selector.addEventListener("change", ()=>
-    {
-        utterance_pitch = utterance_pitch_selector.value;
-    });
-
-    utterance_volume_selector.addEventListener("change", ()=>
-    {
-        utterance_volume = utterance_volume_selector.value;
-    });
-
     // --------------------------- Unit tests --------------------------- //
     
     class UnitTests
@@ -849,7 +713,8 @@
     }
 
     let UnitTestsInstance = new UnitTests();
-    
+
+    /* Example
     UnitTestsInstance.add("WrapTextInSpan_regularCase", () =>
     {
         let text = `Just a simple text thatIwant to test right away! Okay with me...`;
@@ -858,25 +723,7 @@
         let result = input == expect;
         return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
     });
-
-    UnitTestsInstance.add("WrapTextInSpan_Space", () =>
-    {
-        let text = ` Just a simple text thatIwant to test right away! Okay with me... `;
-        let input = WrapTextInSpan(text);
-        let expect = ` <span id="input_text_word_1">Just</span> <span id="input_text_word_6">a</span> <span id="input_text_word_8">simple</span> <span id="input_text_word_15">text</span> <span id="input_text_word_20">thatIwant</span> <span id="input_text_word_30">to</span> <span id="input_text_word_33">test</span> <span id="input_text_word_38">right</span> <span id="input_text_word_44">away!</span> <span id="input_text_word_50">Okay</span> <span id="input_text_word_55">with</span> <span id="input_text_word_60">me...</span> `;
-        let result = input == expect;
-        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
-    });
-
-    UnitTestsInstance.add("WrapWordInSpan_Space", () =>
-    {
-        let text = `Try to spanMe, okay!`;
-        let target = "spanMe"
-        let input = WrapWordInSpan(text, text.indexOf(target));
-        let expect = `Try to <span id="input_text_word_7">spanMe,</span> okay!`;
-        let result = input == expect;
-        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
-    });
+    */
 
     UnitTestsInstance.run();
 
