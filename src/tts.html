@@ -382,6 +382,49 @@
         return (full_str.length - sub_str.length) + curren_char_idx;
     }
 
+    function ChunkGetWordIndex(text)
+    {
+        // Find any character
+        const word_start = text.search(`[^ \n\t]`);
+
+        // Find where it ends
+        const word_end = text.slice(word_start).search(`[ \t\n]`)+word_start;
+    }
+
+    function ChunkText(text, index_from, word_count, char_limit)
+    {
+        let char_count = 0;
+        let chunk_start = 0;
+        let chunk_end = 0
+
+        for (let w = 0; w < word_count; w++)
+        {
+            // Find any character
+            const word_start = text.slice(char_count+index_from).search(`[^ \n\t]`)+char_count+index_from;
+
+            // Find where it ends
+            const word_end = text.slice(word_start).search(`[ \t\n]`)+word_start;
+
+            const tmp_char_count = word_end - char_count+index_from;
+
+            // This new word extrapolates our limit
+            if (tmp_char_count+char_count > char_limit)
+            {
+                // Then, we can stop it here
+                break;
+            }
+
+            // All is fine, then update the data
+            char_count += tmp_char_count;
+
+            // Only update in the first iteration
+            if (w == 0){ chunk_start = word_start; }
+            chunk_end = word_end;
+        }
+
+        return text.slice(chunk_start, chunk_end)
+    }
+
     function ScrollToView(html_element, toggle)
     {
         if (toggle == true)
@@ -397,6 +440,7 @@
         utterance.pitch = upitch;
         utterance.volume = uvolume;
         utterance.voice = uvoice;
+        utterance.lang = uvoice.lang;
         utterance_text = utext;
 
         // Attach to the events
@@ -448,7 +492,7 @@
         // This is a workaround for Safari and MS Edge (mobile)
         speech_synth.cancel();
 
-        if (chrome_workaround_toggle.checked == false)
+        if (chrome_workaround_toggle.checked)
         {
             // The Chrome browser requires the explicit use of the lang parameter (even if it is optional)
             // and it also uses a different sperator char
@@ -823,6 +867,35 @@
         return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
     });
     */
+
+    UnitTestsInstance.add("ChunkText_regularCase", () =>
+    {
+        let text = `Just a simple text thatIwant to test right away! Okay with me...`;
+        let input = ChunkText(text, 0, 1, 100);
+        let expect = `Just`;
+        let result = input == expect;
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
+
+    UnitTestsInstance.add("ChunkText_multipleWords", () =>
+    {
+        let text = `Just a simple text thatIwant to test right away! Okay with me...`;
+        let input = ChunkText(text, 0, 4, 100);
+        let expect = `Just a simple text`;
+        let result = input == expect;
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
+
+    
+    UnitTestsInstance.add("ChunkText_exceedCharLimit", () =>
+    {
+        let text = `Just a simple text thatIwant to test right away! Okay with me...`;
+        let input = ChunkText(text, 0, 3, 6);
+        let expect = `Just a`;
+        let result = input == expect;
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
+    
 
     UnitTestsInstance.run();
 
