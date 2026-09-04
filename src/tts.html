@@ -307,12 +307,12 @@
 
                 <div id="text_chunking_word_limit_group">
                     <label for="text_chunking_word_limit">Word limit:</label>
-                    <input type="number" id="text_chunking_word_limit" name="text_chunking_word_limit" value="100">
+                    <input type="number" id="text_chunking_word_limit" name="text_chunking_word_limit" value="1">
                 </div>
 
                 <div id="text_chunking_char_limit_group">
                     <label for="text_chunking_char_limit">Character limit:</label>
-                    <input type="number" id="text_chunking_char_limit" name="text_chunking_char_limit" value="512">
+                    <input type="number" id="text_chunking_char_limit" name="text_chunking_char_limit" value="100">
                 </div>
             </form>
 
@@ -438,7 +438,7 @@
                 word_end += word_start;
             }
 
-            const tmp_char_count = word_end - char_count+index_from;
+            const tmp_char_count = word_end - (char_count+index_from);
 
             // This new word extrapolates our limit
             if (tmp_char_count+char_count > char_limit)
@@ -452,6 +452,8 @@
             chunk_end = word_end;
         }
 
+        //console.log(`Text section:"${JSON.stringify(text.slice(index_from, char_limit))}"\n Chunk word_lim:${word_count}\n Chunk char_lim:${char_limit}\nchunk_start:${chunk_start}\nchunk_end:${chunk_end}\nResult:"${text.slice(chunk_start, chunk_end)}"`);
+
         return text.slice(chunk_start, chunk_end)
     }
 
@@ -463,20 +465,36 @@
         }
     }
 
-    function CreateUtterance(urate, upitch, uvolume, uvoice, utext)
+    function CreateUtterance(urate, upitch, uvolume, uvoice, utext, start_from = 0, chunk_word_limit = 100, chunk_char_limit = 512)
     {
-        let utterance = new SpeechSynthesisUtterance(utext);
-        utterance.rate = urate;
-        utterance.pitch = upitch;
-        utterance.volume = uvolume;
-        utterance.voice = uvoice;
-        utterance.lang = uvoice.lang;
+        let local_utterance = new SpeechSynthesisUtterance(utext);
+
+        if (text_chunking_toggle.checked)
+        {
+            local_utterance = new SpeechSynthesisUtterance(ChunkText(utext, start_from, chunk_word_limit, chunk_char_limit));
+        }
+        else
+        {
+            local_utterance = new SpeechSynthesisUtterance(utext.slice(start_from));
+        }
+
+        local_utterance.rate = urate;
+        local_utterance.pitch = upitch;
+        local_utterance.volume = uvolume;
+        local_utterance.voice = uvoice;
+        local_utterance.lang = uvoice.lang;
+        // Add new attributes
+        local_utterance.startIndex = start_from;
+        local_utterance.fullText = utext;
+
         utterance_text = utext;
 
+        console.log(local_utterance);
+
         // Attach to the events
-        utterance.onboundary = (event) =>
+        local_utterance.onboundary = (event) =>
         {
-            const absolute_char_idx = GetAbsoluteCharIndexFromSubstring(utterance_original_text, utterance_text, event.charIndex);
+            const absolute_char_idx = event.utterance.startIndex + event.charIndex;
 
             // Update the UI using the full text and not just the slice given to the TTS
             if (scroll_to_view_toggle.checked == true)
@@ -499,19 +517,31 @@
 
         };
 
-        utterance.onend = (event) =>
+        local_utterance.onend = (event) =>
         {
-            // Only replay if enabled
-            if (replay_toggle.checked == true)
+            // Since this is the onend event, we can simply take the start index and the text length read by the TTS
+            const absolute_char_idx = event.utterance.startIndex + event.utterance.text.length;
+
+            // Only replay if enabled and if we really are the end
+            if (replay_toggle.checked == true && absolute_char_idx == event.utterance.fullText.length)
             {
                 // Recreate the utterance
                 // Is this recursion safe?????
-                utterance = CreateUtterance(urate, upitch, uvolume, uvoice, utterance_original_text)
+                utterance = CreateUtterance(urate, upitch, uvolume, uvoice, utterance_original_text, 0, chunk_word_limit, chunk_char_limit)
+                AddUtteranceToTtsQueue(utterance);
+            }
+
+            // We aren't at the end, then we must get the next text chunk
+            else if (speech_playing == true)
+            {
+                // Update the charIndex as it speaks
+                current_char = absolute_char_idx;
+                utterance = CreateUtterance(urate, upitch, uvolume, uvoice, utterance_original_text, absolute_char_idx, chunk_word_limit, chunk_char_limit);
                 AddUtteranceToTtsQueue(utterance);
             }
         };
 
-        return utterance
+        return local_utterance
     }
 
     // This is a new fuction to accomodate all the browser workarounds
@@ -629,14 +659,14 @@
         // There is no utterance
         if (utterance == undefined)
         {
-            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text);
+            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text, 0, text_chunking_word_limit_selector.value, text_chunking_char_limit_selector.value);
             AddUtteranceToTtsQueue(utterance);
         }
 
         // A new file was loaded, try again
         if (new_file == true)
         {
-            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text);
+            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text, 0, text_chunking_word_limit_selector.value, text_chunking_char_limit_selector.value);
             AddUtteranceToTtsQueue(utterance);
 
             // Reset the bool
@@ -646,7 +676,7 @@
         // Some parameters of the voice changed
         if (voice_changed == true)
         {
-            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text.slice(current_char));
+            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text, current_char, text_chunking_word_limit_selector.value, text_chunking_char_limit_selector.value);
             AddUtteranceToTtsQueue(utterance);
 
             // Reset the bool
@@ -664,7 +694,7 @@
         {
             console.log("Play");
             speech_playing = true;
-            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text.slice(current_char));
+            utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text, current_char, text_chunking_word_limit_selector.value, text_chunking_char_limit_selector.value);
             AddUtteranceToTtsQueue(utterance);
         }
     }
