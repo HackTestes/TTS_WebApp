@@ -417,8 +417,8 @@
     function ChunkText(text, index_from, word_count, char_limit)
     {
         let char_count = 0;
-        let chunk_start = 0;
-        let chunk_end = 0
+        let chunk_start = index_from;
+        let chunk_end = 0;
 
         for (let w = 0; w < word_count; w++)
         {
@@ -426,7 +426,17 @@
             const word_start = text.slice(char_count+index_from).search(`[^ \n\t]`)+char_count+index_from;
 
             // Find where it ends
-            const word_end = text.slice(word_start).search(`[ \t\n]`)+word_start;
+            let word_end = text.slice(word_start).search(`[ \t\n]`);
+
+            // It means it reached the end of the string
+            if (word_end == -1)
+            {
+                word_end = text.slice(word_start).length + word_start;
+            }
+            else
+            {
+                word_end += word_start;
+            }
 
             const tmp_char_count = word_end - char_count+index_from;
 
@@ -439,9 +449,6 @@
 
             // All is fine, then update the data
             char_count += tmp_char_count;
-
-            // Only update in the first iteration
-            if (w == 0){ chunk_start = word_start; }
             chunk_end = word_end;
         }
 
@@ -897,7 +904,6 @@
         return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
     });
 
-    
     UnitTestsInstance.add("ChunkText_exceedCharLimit", () =>
     {
         let text = `Just a simple text thatIwant to test right away! Okay with me...`;
@@ -907,6 +913,29 @@
         return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
     });
     
+    UnitTestsInstance.add("ChunkText_fullFlow", () =>
+    {
+        let text = `Just a simple text thatIwant to test!`;
+        let input = [];
+
+        let curren_char_idx = 0
+
+        // Use a for loop just to avoid infinite loops (just like eBPF)
+        for(let i=0; i < 15; i++)
+        {
+            const word = ChunkText(text, curren_char_idx, 1, 100);
+            curren_char_idx += word.length;
+            input.push(word);
+            //console.log(`word:${word} \nword_l:${word.length} \ncurren_char_idx:${curren_char_idx} \nnext text:${text.slice(curren_char_idx)} \n`);
+
+            // A while loop would use the "<" as a condition instead of this
+            if (curren_char_idx >= text.length){break}
+        }
+
+        let expect = ["Just", " a", " simple", " text", " thatIwant", " to", " test!"];
+        let result = input.toString() == expect.toString();
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
 
     UnitTestsInstance.run();
 
