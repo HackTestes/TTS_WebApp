@@ -298,13 +298,32 @@
 
             <hr>
 
+            <form action="" id="TextChunkingSettings">
+
+                <div id="text_chunking_toggle_group">
+                    <label for="text_chunking_toggle">Enable text chunking (required for offline Android voices):</label>
+                    <input type="checkbox" id="text_chunking_toggle" name="text_chunking_toggle" checked>
+                </div>
+
+                <div id="text_chunking_word_limit_group">
+                    <label for="text_chunking_word_limit">Word limit:</label>
+                    <input type="number" id="text_chunking_word_limit" name="text_chunking_word_limit" value="100">
+                </div>
+
+                <div id="text_chunking_char_limit_group">
+                    <label for="text_chunking_char_limit">Character limit:</label>
+                    <input type="number" id="text_chunking_char_limit" name="text_chunking_char_limit" value="512">
+                </div>
+            </form>
+
+            <hr>
+
             <form action="" id="AdvancedSettings">
 
                 <div id="chrome_workaround_toggle_group">
                     <label for="chrome_workaround_toggle">Enable Chrome workarounds:</label>
                     <input type="checkbox" id="chrome_workaround_toggle" name="chrome_workaround_toggle" checked>
                 </div>
-
             </form>
         </div>
     </div>
@@ -335,6 +354,10 @@
     const fastFoward_word_skip_selector = document.getElementById("media_control_settings_fastFoward_word_skip");
     const rewind_hold_speed_interval_selector = document.getElementById("media_control_settings_rewind_speed");
     const rewind_word_skip_selector = document.getElementById("media_control_settings_rewind_word_skip");
+    // Text chunking settings
+    const text_chunking_toggle = document.getElementById("text_chunking_toggle");
+    const text_chunking_word_limit_selector = document.getElementById("text_chunking_word_limit");
+    const text_chunking_char_limit_selector = document.getElementById("text_chunking_char_limit");
     // Advanced settings
     const chrome_workaround_toggle = document.getElementById("chrome_workaround_toggle");
 
@@ -487,22 +510,10 @@
     // This is a new fuction to accomodate all the browser workarounds
     function AddUtteranceToTtsQueue(utterance_instance)
     {
-
         // Clear the queue before sending a new utterance
         // This is a workaround for Safari and MS Edge (mobile)
         speech_synth.cancel();
-
-        if (chrome_workaround_toggle.checked)
-        {
-            // The Chrome browser requires the explicit use of the lang parameter (even if it is optional)
-            // and it also uses a different sperator char
-            speech_synth.speak(utterance_instance, utterance_voice.lang.replace("-", "_"));
-        }
-        // Default
-        else
-        {
-            speech_synth.speak(utterance_instance);
-        }
+        speech_synth.speak(utterance_instance);
     }
 
     function ClickActions(event)
