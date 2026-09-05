@@ -423,12 +423,24 @@
         for (let w = 0; w < word_count; w++)
         {
             // Find any character
-            const word_start = text.slice(char_count+index_from).search(`[^ \n\t]`)+char_count+index_from;
+            let word_start = text.slice(char_count+index_from).search(`[^ \n\t]`);
+
+            // It means that we reached the end of the text and only found spaces
+            if (word_start == -1)
+            {
+                // Remember that slice uses absolute indexes, so we must offset it with the start_idx of the slice
+                return text.slice(index_from, index_from+char_limit);
+            }
+            // We found an actual character
+            else
+            {
+                word_start += char_count + index_from;
+            }
 
             // Find where it ends
             let word_end = text.slice(word_start).search(`[ \t\n]`);
 
-            // It means it reached the end of the string
+            // It means it reached the end of the text
             if (word_end == -1)
             {
                 word_end = text.slice(word_start).length + word_start;
@@ -489,7 +501,7 @@
 
         utterance_text = utext;
 
-        console.log(local_utterance);
+        //console.log(local_utterance);
 
         // Attach to the events
         local_utterance.onboundary = (event) =>
@@ -963,6 +975,30 @@
         }
 
         let expect = ["Just", " a", " simple", " text", " thatIwant", " to", " test!"];
+        let result = input.toString() == expect.toString();
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
+
+    UnitTestsInstance.add("ChunkText_emptySpace", () =>
+    {
+        let text = `Can you repeat this!     `;
+        let input = [];
+
+        let curren_char_idx = 0
+
+        // Use a for loop just to avoid infinite loops (just like eBPF)
+        for(let i=0; i < 15; i++)
+        {
+            const word = ChunkText(text, curren_char_idx, 1, 100);
+            curren_char_idx += word.length;
+            input.push(word);
+            //console.log(`word:${word} \nword_l:${word.length} \ncurren_char_idx:${curren_char_idx} \nnext text:${text.slice(curren_char_idx)} \n`);
+
+            // A while loop would use the "<" as a condition instead of this
+            if (curren_char_idx >= text.length){break}
+        }
+
+        let expect = ["Can", " you", " repeat", " this!", "     "];
         let result = input.toString() == expect.toString();
         return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
     });
