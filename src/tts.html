@@ -704,8 +704,11 @@
     // Hold action
     // Keep the key pressed to continuously run the action
     // When the key is removed, all of the timers are cleared before the click events
-    media_control_front.addEventListener("keydown", HoldActions);
-    media_control_front.addEventListener("keyup", ClearGlobalTimers);
+    media_control_front.addEventListener("mousedown", HoldActions);
+    media_control_front.addEventListener("mouseup", ClearGlobalTimers);
+    // Mobile
+    media_control_front.addEventListener("touchstart", HoldActions);
+    media_control_front.addEventListener("touchend", ClearGlobalTimers);
 
     // Back btn
     media_control_back.addEventListener("click", ClickActions);
@@ -713,8 +716,11 @@
     // Hold action
     // Keep the key pressed to continuously run the action
     // When the key is removed, all of the timers are cleared before the click events
-    media_control_back.addEventListener("keydown", HoldActions);
-    media_control_back.addEventListener("keyup", ClearGlobalTimers);
+    media_control_back.addEventListener("mousedown", HoldActions);
+    media_control_back.addEventListener("mouseup", ClearGlobalTimers);
+    // Mobile
+    media_control_back.addEventListener("touchstart", HoldActions);
+    media_control_back.addEventListener("touchend", ClearGlobalTimers);
 
     close_settings_btn.addEventListener("click", CloseSettings);
 
