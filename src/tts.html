@@ -65,8 +65,11 @@
             border: 1pt solid;
             border-radius: 5pt;
             z-index: 2;
+            position: fixed;
             display: flex;
-            margin: auto;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         #SkipTo #skip_to_group
@@ -206,8 +209,8 @@
 
             <div id="SkipTo" class="display_none_class">
                 <div id="skip_to_group">
-                    <label for="skip_to_selector">Jump to:</label>
-                    <textarea name="skip_to_selector" id="skip_to_selector" cols="30" rows="3"></textarea>
+                    <label for="skip_to_text">Jump to:</label>
+                    <textarea name="skip_to_text" id="skip_to_text" cols="30" rows="3"></textarea>
                     <div id="skip_to_btn_group">
                         <input type="button" name="skip_to_btn" id="skip_to_btn" value="Go"></input>
                         <input type="button" name="skip_to_cancel_btn" id="skip_to_cancel_btn" value="Cancel"></input>
@@ -325,6 +328,11 @@
                     <input type="number" id="media_control_settings_input_latency" name="media_control_settings_input_latency" value="200">
                 </div>
 
+                <div id="media_control_settings_hold_input_latency_multiplier_group">
+                    <label for="media_control_settings_hold_input_latency_multiplier">Hold input latenecy multiplier (2x, 3x...):</label>
+                    <input type="number" id="media_control_settings_hold_input_latency_multiplier" name="media_control_settings_hold_input_latency_multiplier" value="2">
+                </div>
+
                 <div id="media_control_settings_fastFoward_speed_group">
                     <label for="media_control_settings_fastFoward_speed">FastForward hold speed in miliseconds (lower is faster):</label>
                     <input type="number" id="media_control_settings_fastFoward_speed" name="media_control_settings_fastFoward_speed" value="200">
@@ -385,6 +393,9 @@
     const text_viewer_current_word = document.getElementById("TextViewer_CurrentWord");
     const text_viewer_after = document.getElementById("TextViewer_After");
     const skip_to_element = document.getElementById("SkipTo");
+    const skip_to_element_text_element = document.getElementById("skip_to_text");
+    const skip_to_element_go_btn = document.getElementById("skip_to_btn");
+    const skip_to_element_cancel_btn = document.getElementById("skip_to_cancel_btn");
 
     const settings_page = document.getElementById("PageSettings");
     const close_settings_btn = document.getElementById("close_settings");
@@ -401,6 +412,7 @@
     const replay_toggle = document.getElementById("media_control_settings_replay");
     const scroll_to_view_toggle = document.getElementById("media_control_settings_ScrollToView");
     const input_latency_selector = document.getElementById("media_control_settings_input_latency");
+    const hold_input_latency_multiplier_selector = document.getElementById("media_control_settings_hold_input_latency_multiplier");
     const fastFoward_hold_speed_interval_selector = document.getElementById("media_control_settings_fastFoward_speed");
     const fastFoward_word_skip_selector = document.getElementById("media_control_settings_fastFoward_word_skip");
     const rewind_hold_speed_interval_selector = document.getElementById("media_control_settings_rewind_speed");
@@ -668,7 +680,7 @@
         // Wait a bit of time and then execute continously the same thing
         if (event.srcElement.id == "media-control-front")
         {
-            global_timer = setTimeout(() => { global_interval = setInterval(()=>{key_hold = true; FastForward("", 0, 0)}, fastFoward_hold_speed_interval_selector.value) }, input_latency_selector.value);
+            global_timer = setTimeout(() => { key_hold = true; ToggleSkipToUI() }, hold_input_latency_multiplier_selector.value*input_latency_selector.value);
         }
 
         else if (event.srcElement.id == "media-control-back")
@@ -762,6 +774,35 @@
         }
     }
 
+    function ToggleSkipToUI()
+    {
+        skip_to_element.classList.toggle("display_none_class");
+    }
+
+    function SkipTo()
+    {
+        // Find the first occurrence of the string
+        let start_at_idx = utterance.fullText.indexOf(skip_to_element_text_element.value);
+
+        // If we don't find anything, start from the very beginning
+        if (start_at_idx == -1)
+        {
+            start_at_idx = 0;
+        }
+
+        // Start playing from it
+        current_char = start_at_idx;
+        speech_playing = true;
+        utterance = CreateUtterance(utterance_rate_selector.value, utterance_pitch_selector.value, utterance_volume_selector.value, utterance_voice, utterance_original_text, current_char, text_chunking_word_limit_selector.value, text_chunking_char_limit_selector.value);
+        AddUtteranceToTtsQueue(utterance);
+
+        // Close the UI
+        ToggleSkipToUI();
+    }
+
+    skip_to_element_cancel_btn.addEventListener("click", ToggleSkipToUI);
+    skip_to_element_go_btn.addEventListener("click", SkipTo);
+
     // It is better to show first because it renders the actual page before we hide the current one (it avoids a blank page transition)
     function ShowSettings()
     {
@@ -775,11 +816,6 @@
         console.log("CloseSettings");
         main_page.classList.toggle("display_none_class"); //show
         settings_page.classList.toggle("display_none_class"); //close
-    }
-
-    function ToggleSkipToUI()
-    {
-        skip_to_element.classList.toggle("display_none_class");
     }
 
     function IsCharacter(char)
