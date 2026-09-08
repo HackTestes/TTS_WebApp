@@ -351,12 +351,12 @@
 
                 <div id="media_control_settings_fastFoward_char_skip_group">
                     <label for="media_control_settings_fastFoward_char_skip">FastForward char jump:</label>
-                    <input type="number" id="media_control_settings_fastFoward_char_skip" name="media_control_settings_fastFoward_char_skip" value="20">
+                    <input type="number" id="media_control_settings_fastFoward_char_skip" name="media_control_settings_fastFoward_char_skip" value="100">
                 </div>
 
                 <div id="media_control_settings_rewind_char_skip_group">
                     <label for="media_control_settings_rewind_char_skip">Rewind char jump:</label>
-                    <input type="number" id="media_control_settings_rewind_char_skip" name="media_control_settings_rewind_char_skip" value="20">
+                    <input type="number" id="media_control_settings_rewind_char_skip" name="media_control_settings_rewind_char_skip" value="100">
                 </div>
             </form>
 
@@ -733,9 +733,12 @@
 
         // Start playing from it
         current_char = start_at_idx;
-        speech_playing = true;
-        utterance = CreateUtterance(utterance_rate_selector.valueAsNumber, utterance_pitch_selector.valueAsNumber, utterance_volume_selector.valueAsNumber, utterance_voice, utterance_original_text, current_char, text_chunking_word_limit_selector.valueAsNumber, text_chunking_char_limit_selector.valueAsNumber);
-        AddUtteranceToTtsQueue(utterance);
+
+        if (speech_playing == true)
+        {
+            utterance = CreateUtterance(utterance_rate_selector.valueAsNumber, utterance_pitch_selector.valueAsNumber, utterance_volume_selector.valueAsNumber, utterance_voice, utterance_original_text, current_char, text_chunking_word_limit_selector.valueAsNumber, text_chunking_char_limit_selector.valueAsNumber);
+            AddUtteranceToTtsQueue(utterance);
+        }
 
         // Close the UI
         ToggleSkipToUI();
