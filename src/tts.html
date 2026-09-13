@@ -814,6 +814,73 @@
         })
     };
 
+    // Service Worker code
+
+    if ("serviceWorker" in navigator)
+    {
+        try
+        {
+            const registration = navigator.serviceWorker.register("./service_worker.js",{scope: "./",}).then(r=>r);
+
+            // Always try to update
+            if (registration != undefined)
+            {
+                registration.then(r => r.update());
+            }
+
+            if (registration.installing)
+            {
+                console.log("Service worker installing");
+            }
+
+            else if (registration.waiting)
+            {
+                console.log("Service worker installed");
+            }
+
+            else if (registration.active)
+            {
+                console.log("Service worker active");
+            }
+
+        } catch (error)
+        {
+            console.error(`Registration failed with ${error}`);
+        }
+    }
+
+
+    async function UpdateCache()
+    {
+        console.log("UpdateCache");
+        const main_page = "./tts.html";
+
+        // Try to update it with the network first
+        const network_response = await fetch(main_page,
+        {
+            signal: AbortSignal.timeout(5000),
+            headers: {
+                'cache': 'reload',
+            }
+        });
+
+        /*
+        let cache = await window.caches.open("web-tts-pages");
+        let cache_response = await cache.match(main_page);
+
+        if (network_response != undefined && (cache_response.bytes() != network_response.bytes()))
+        {
+            console.log("reload");
+            //location.reload();
+        }*/
+    }
+
+    // Update the cache as soon as the page loads
+    UpdateCache();
+
+    // Then keep trying for periods of time
+    let interval = setInterval(UpdateCache, 1000*60*60);
+
     // --------------------------- Unit tests --------------------------- //
     
     class UnitTests
