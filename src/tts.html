@@ -142,35 +142,6 @@
             background-color: rgb(134, 175, 255);
         }
 
-        #media-control-overlay
-        {
-            z-index: 1;
-            margin: 0;
-            top: 0;
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            flex-direction: row;
-            position: fixed;
-            opacity: 10%;
-        }
-
-        #media-control-back
-        {
-            margin: 0;
-            top: 0;
-            /*DEBUG COLOR*/
-            background-color: brown;
-        }
-
-        #media-control-front
-        {
-            margin: 0;
-            top: 0;
-            /*DEBUG COLOR*/
-            background-color: aquamarine;
-        }
-
         /*The settings page will use z-index from 100 to 199. 100-199 (inclusive)*/
         #PageSettings
         {
@@ -180,48 +151,6 @@
         #VoiceSettings
         {
             flex-direction: column;
-        }
-
-        /* Orientation specific styles */
-        @media screen and (orientation: landscape)
-        {
-            #media-control-overlay
-            {
-                flex-direction: row;
-            }
-
-            #media-control-back
-            {
-                height: 100vh;
-                width: 50vw;
-            }
-
-            #media-control-front
-            {
-                height: 100vh;
-                width: 50vw;
-            }
-        }
-
-        /* Orientation specific styles */
-        @media screen and (orientation: portrait)
-        {
-            #media-control-overlay
-            {
-                flex-direction: column;
-            }
-
-            #media-control-back
-            {
-                height: 50vh;
-                width: 100vw;
-            }
-
-            #media-control-front
-            {
-                height: 50vh;
-                width: 100vw;
-            }
         }
 
     </style>
@@ -425,11 +354,6 @@
     const settings_btn = document.getElementById("Settings");
     const skip_to_btn = document.getElementById("SkipToUIToggle");
 
-    // Used to keep track of inputs between multiple events, this is why they are global
-    let global_timer;
-    let global_interval;
-    let key_hold = false;
-
     // https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API
     const speech_synth = window.speechSynthesis;
     // Holds the full text, in case we only need a substring for the utterance
@@ -447,15 +371,6 @@
 
     // Keep track of play status manually and "ignore" the one returned by the WebSpeech API, since it might be buggy
     let speech_playing = false;
-
-    function ChunkGetWordIndex(text)
-    {
-        // Find any character
-        const word_start = text.search(`[^ \n\t]`);
-
-        // Find where it ends
-        const word_end = text.slice(word_start).search(`[ \t\n]`)+word_start;
-    }
 
     function ChunkText(text, index_from, word_count, char_limit)
     {
@@ -681,16 +596,10 @@
 
     function PlayPause()
     {
-        // There is no utterance
-        if (utterance == undefined)
-        {
-            utterance = CreateUtterance(utterance_rate_selector.valueAsNumber, utterance_pitch_selector.valueAsNumber, utterance_volume_selector.valueAsNumber, utterance_voice, utterance_original_text, 0, text_chunking_word_limit_selector.valueAsNumber, text_chunking_char_limit_selector.valueAsNumber);
-            AddUtteranceToTtsQueue(utterance);
-        }
-
-        // A new file was loaded, try again
+        // A new file was loaded, create a new utterance at zero
         if (new_file == true)
         {
+            // Since we always create a new utterance, we can simply update the char index here
             current_char = 0;
             new_file = false;
         }
