@@ -850,36 +850,63 @@
     }
 
 
-    async function UpdateCache()
+    async function UpdateCache(time_limit_reload_ms)
     {
-        console.log("UpdateCache");
-        const main_page = "./tts.html";
+        const start_update_request = performance.now();
 
-        // Try to update it with the network first
-        const network_response = await fetch(main_page,
+        navigator.serviceWorker.addEventListener('message', (event) =>
         {
-            signal: AbortSignal.timeout(5000),
-            headers: {
-                'cache': 'reload',
+            const time_elapsed_since_update_request = performance.now() - start_update_request;
+            console.log(`Response received from Service Worker: ${JSON.stringify(event.data)} - ${time_elapsed_since_update_request}ms`);
+
+            // If we get an update really fast, we can prevent the user from having to relaod the page manually
+            // And since it was really fast, it will look like a single reload
+            if ((time_elapsed_since_update_request <= time_limit_reload_ms) && (event.data.status == "updated"))
+            {
+                location.reload();
             }
         });
 
-        /*
-        let cache = await window.caches.open("web-tts-pages");
-        let cache_response = await cache.match(main_page);
-
-        if (network_response != undefined && (cache_response.bytes() != network_response.bytes()))
+        navigator.serviceWorker.ready.then((registration) =>
         {
-            console.log("reload");
-            //location.reload();
-        }*/
+            registration.active.postMessage({operation: "update-cache"});
+        });
     }
 
     // Update the cache as soon as the page loads
-    UpdateCache();
+    UpdateCache(500);
 
     // Then keep trying for periods of time
-    let interval = setInterval(UpdateCache, 1000*60*60);
+    let interval = setInterval(UpdateCache, 1000*60*60, 500);
+
+    // Copy of the service worker function
+    function ArrayEquals(array_a, array_b)
+    {
+        // If any of them are undefined, return as if they aren't the same
+        // This is valid even if they are both undefined
+        if (array_a == undefined || array_b == undefined)
+        {
+            return false
+        }
+
+        // Fast comparison
+        // If their sizes are different, they aren't equal at all
+        if (array_a.length != array_b.length)
+        {
+            return false;
+        }
+
+        // If they have the same size, then we will check each element
+        for (let i = 0; i < array_a.length; ++i)
+        {
+            if (array_a[i] != array_b[i])
+            {
+                return false
+            }
+        }
+
+        return true
+    }
 
     // --------------------------- Unit tests --------------------------- //
     
@@ -1010,6 +1037,26 @@
 
         let expect = ["Can", " you", " repeat", " this!", "     "];
         let result = input.toString() == expect.toString();
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
+
+    UnitTestsInstance.add("ArrayEquals_equality", () =>
+    {
+        const array_a = [0, 1, 2, 3];
+        const array_b = [0, 1, 2, 3];
+        const expect = true;
+        const result = ArrayEquals(array_a, array_b) == expect;
+        const input = `${array_a} -- ${array_b}`;
+        return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
+    });
+
+    UnitTestsInstance.add("ArrayEquals_inequality", () =>
+    {
+        const array_a = [0, 1, 2, 3];
+        const array_b = [0, 1, 2, 4];
+        const expect = false;
+        const result = ArrayEquals(array_a, array_b) == expect;
+        const input = `${array_a} -- ${array_b}`;
         return {"result": result, "msg": ` INPUT: ${input}\n\n EXPECT: ${expect}`}
     });
 
