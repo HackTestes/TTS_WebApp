@@ -1,6 +1,10 @@
 // Note that this service worker is tailored to an app that uses a single html fole for the whole application
 const version = "1"
-const main_page = "./tts.html"
+const urls = [
+    "./tts.html",
+    "./manifest.json",
+    "./app.svg"
+]
 const cache_name = "web-tts-pages"
 
 // Not needed for now
@@ -43,7 +47,7 @@ self.addEventListener('install', event =>
     self.skipWaiting();
 
     event.waitUntil(
-        caches.open(cache_name).then(cache => {cache.add(main_page)})
+        caches.open(cache_name).then(cache => {cache.addAll(urls)})
     );
 });
 
@@ -72,7 +76,7 @@ async function HandleFetch(event)
     console.log(`Network responded`);
 
     // The network got something, update the cache
-    event.waitUntil( cache.put(event.request, network_response.clone()) );
+    event.waitUntil( cache.add(event.request, network_response.clone()) );
     return network_response;
 }
 
@@ -92,22 +96,34 @@ async function HandleMessages(event)
         console.log("Manual cache update triggered");
 
         const cache = await caches.open(cache_name);
+        let cache_updated = false;
 
-        const cache_response = await cache.match(main_page);
-
-        const network_response = await fetch(main_page,
+        for (let i=0; i < urls.length; i++)
         {
-            signal: AbortSignal.timeout(10000),
-            headers: {
-                'cache': 'no-cache',
+            // Get a response from the cache and network, so they can be compared
+            const cache_response = await cache.match(urls[i]);
+
+            const network_response = await fetch(urls[i],
+            {
+                signal: AbortSignal.timeout(10000),
+                headers: {
+                    'cache': 'no-cache',
+                }
+            });
+
+            // Compare the results
+            if ( await cache_response.clone().text() != await network_response.clone().text() )
+            {
+                // They aren't the same, then we update the cache
+                await cache.add(urls[i], network_response.clone());
+                // Signal that there was an update
+                cache_updated = true;
             }
-        });
+        }
 
-        // Compare the results
-        if ( await cache_response.clone().text() != await network_response.clone().text() )
+        // Message back the page with what happend
+        if (cache_updated == true)
         {
-            // They aren't the same, then we update the cache
-            await cache.add(main_page, network_response.clone());
             event.source.postMessage({operation: "update-cache", status: "updated"})
         }
         else
