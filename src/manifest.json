@@ -8,7 +8,7 @@
             "type": "image/svg+xml"
         }
     ],
-    "start_url": ".",
+    "start_url": "./tts.html",
     "display_override": ["minimal-ui", "standalone", "fullscreen", "window-controls-overlay", "browser"],
     "display": "minimal-ui",
     "theme_color": "black",
