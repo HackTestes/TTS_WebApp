@@ -1,0 +1,16 @@
+{
+    "short_name": "TTS",
+    "name": "TTS Web App",
+    "icons": [
+        {
+            "src": "./app.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml"
+        }
+    ],
+    "start_url": ".",
+    "display_override": ["minimal-ui", "standalone", "fullscreen", "window-controls-overlay", "browser"],
+    "display": "minimal-ui",
+    "theme_color": "black",
+    "background_color": "white"
+}

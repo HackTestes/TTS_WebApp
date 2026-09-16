@@ -1,5 +1,7 @@
-const version = "10"
+// Note that this service worker is tailored to an app that uses a single html fole for the whole application
+const version = "1"
 const main_page = "./tts.html"
+const cache_name = "web-tts-pages"
 
 // Not needed for now
 function ArrayEquals(array_a, array_b)
@@ -41,7 +43,7 @@ self.addEventListener('install', event =>
     self.skipWaiting();
 
     event.waitUntil(
-        caches.open('web-tts-pages').then(cache => {cache.add(main_page)})
+        caches.open(cache_name).then(cache => {cache.add(main_page)})
     );
 });
 
@@ -53,9 +55,11 @@ self.addEventListener('activate', event =>
 
 async function HandleFetch(event)
 {
-    const cache = await caches.open("web-tts-pages");
+    // Check the cache first for a match
+    const cache = await caches.open(cache_name);
     const cache_response = await cache.match(event.request);
 
+    // Skip it if don't find a match or if the request explicitly says that the cache must be reloaded
     if (cache_response != undefined && event.request.headers.get("cache") != 'reload')
     {
         console.log(`Cache responded`);
@@ -67,7 +71,7 @@ async function HandleFetch(event)
     const network_response = await fetch(event.request);
     console.log(`Network responded`);
 
-    // The network got something
+    // The network got something, update the cache
     event.waitUntil( cache.put(event.request, network_response.clone()) );
     return network_response;
 }
@@ -80,14 +84,14 @@ self.addEventListener('fetch', event =>
 
 async function HandleMessages(event)
 {
-    console.log(`Message received! ${event.data}`);
+    console.log(`Service worker got a new message!`);
     const message = event.data;
 
     if (message.operation = "update-cache")
     {
         console.log("Manual cache update triggered");
 
-        const cache = await caches.open('web-tts-pages');
+        const cache = await caches.open(cache_name);
 
         const cache_response = await cache.match(main_page);
 
