@@ -105,6 +105,7 @@ async function HandleMessages(event)
 
             // Bypass the cache and always ask the server
             // See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching
+            // See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control
             const network_response = await fetch(urls[i],
             {
                 signal: AbortSignal.timeout(10000),
