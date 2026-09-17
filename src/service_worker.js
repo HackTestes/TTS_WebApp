@@ -103,11 +103,13 @@ async function HandleMessages(event)
             // Get a response from the cache and network, so they can be compared
             const cache_response = await cache.match(urls[i]);
 
+            // Bypass the cache and always ask the server
+            // See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching
             const network_response = await fetch(urls[i],
             {
                 signal: AbortSignal.timeout(10000),
                 headers: {
-                    'cache': 'no-cache',
+                    'Cache-Control': 'no-cache',
                 }
             });
 
