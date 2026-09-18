@@ -3,8 +3,10 @@
 ## Deploy
 
 ```bash
-git switch deploy && git merge master && git switch master
+git switch deploy && git merge master && git switch master && git push --all
 ```
+
+Note: use `git push --all -u` to also upload local branches to remote
 
 ## Local test
 
